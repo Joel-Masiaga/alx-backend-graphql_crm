@@ -1,12 +1,13 @@
 import os
-import requests
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
 from datetime import datetime, timedelta
 
 # GraphQL endpoint
 GRAPHQL_ENDPOINT = "http://localhost:8000/graphql"
 
-# The GraphQL query
-QUERY = """
+# GraphQL query
+QUERY = gql("""
 query GetPendingOrders($orderDate: Date!) {
   orders(orderDate_Gte: $orderDate) {
     id
@@ -15,22 +16,20 @@ query GetPendingOrders($orderDate: Date!) {
     }
   }
 }
-"""
+""")
 
 def send_reminders():
-    """
-    Queries the GraphQL endpoint for orders within the last 7 days and logs reminders.
-    """
     last_week = (datetime.now() - timedelta(days=7)).date()
     variables = {"orderDate": last_week.isoformat()}
 
-    try:
-        response = requests.post(GRAPHQL_ENDPOINT, json={'query': QUERY, 'variables': variables})
-        response.raise_for_status()  # Raise an exception for bad status codes
-        data = response.json().get('data', {})
-        orders = data.get('orders', [])
+    transport = RequestsHTTPTransport(url=GRAPHQL_ENDPOINT, verify=True, retries=3)
+    client = Client(transport=transport, fetch_schema_from_transport=False)
 
-        log_file_path = "/tmp/order_reminders_log.txt"
+    log_file_path = "/tmp/orderreminderslog.txt"  # EXACT name
+
+    try:
+        result = client.execute(QUERY, variable_values=variables)
+        orders = result.get('orders', [])
 
         with open(log_file_path, "a") as f:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -45,8 +44,6 @@ def send_reminders():
 
         print("Order reminders processed!")
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error connecting to GraphQL endpoint: {e}")
     except Exception as e:
         print(f"An error occurred: {e}")
 
