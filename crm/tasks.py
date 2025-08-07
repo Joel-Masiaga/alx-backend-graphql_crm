@@ -1,6 +1,5 @@
 from celery import shared_task
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
+import requests
 from datetime import datetime
 
 @shared_task
@@ -8,10 +7,10 @@ def generate_crm_report():
     """
     Generates a weekly CRM report using a GraphQL query and logs it.
     """
+    graphql_endpoint = "http://localhost:8000/graphql"
     log_file_path = "/tmp/crm_report_log.txt"
 
-    # GraphQL query
-    query = gql("""
+    query = """
     query {
       customers {
         id
@@ -20,26 +19,17 @@ def generate_crm_report():
         totalAmount
       }
     }
-    """)
-
-    # GraphQL client setup
-    transport = RequestsHTTPTransport(
-        url="http://localhost:8000/graphql",
-        verify=True,
-        retries=3,
-    )
-
-    client = Client(transport=transport, fetch_schema_from_transport=False)
+    """
 
     try:
-        result = client.execute(query)
+        response = requests.post(graphql_endpoint, json={'query': query})
+        response.raise_for_status()
+        data = response.json().get('data', {})
 
-        customers = result.get("customers", [])
-        orders = result.get("orders", [])
-
-        num_customers = len(customers)
+        num_customers = len(data.get('customers', []))
+        orders = data.get('orders', [])
         num_orders = len(orders)
-        total_revenue = sum(order.get("totalAmount", 0) for order in orders)
+        total_revenue = sum(order.get('totalAmount', 0) for order in orders)
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         report_message = (
@@ -50,6 +40,6 @@ def generate_crm_report():
         with open(log_file_path, "a") as f:
             f.write(report_message + "\n")
 
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         with open(log_file_path, "a") as f:
             f.write(f"{datetime.now()} - Error generating report: {e}\n")
