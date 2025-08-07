@@ -25,7 +25,7 @@ def send_reminders():
     transport = RequestsHTTPTransport(url=GRAPHQL_ENDPOINT, verify=True, retries=3)
     client = Client(transport=transport, fetch_schema_from_transport=False)
 
-    log_file_path = "/tmp/orderreminderslog.txt"  # EXACT name
+    log_file_path = "/tmp/order_reminders_log.txt" 
 
     try:
         result = client.execute(QUERY, variable_values=variables)
