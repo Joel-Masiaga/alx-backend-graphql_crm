@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'graphene_django',
     'django_filters',
-    'crm',
+    'django_crontab',
+    'crm', 
 ]
 
 MIDDLEWARE = [
@@ -127,3 +128,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GRAPHENE = {
     "SCHEMA": "alx_backend_graphql_crm.schema.schema"
 }
+
+
+CRONJOBS = [
+    ('0 8 * * *', 'crm.cron_jobs.send_order_reminders.send_reminders'),
+]
